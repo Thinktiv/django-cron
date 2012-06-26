@@ -25,6 +25,8 @@ from datetime import datetime
 
 from django.dispatch import dispatcher
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from django.utils.importlib import import_module
 
 from signals import cron_done
 import models
@@ -95,7 +97,7 @@ class CronScheduler(object):
                 # this will fail if you're debugging, so we want it
                 # to fail silently and start the timer again so we 
                 # can pick up where we left off once debugging is done
-                #Timer(polling_frequency, self.execute).start()
+                Timer(polling_frequency, self.execute).start()
                 return
                 
             jobs = models.Job.objects.all()
@@ -129,5 +131,27 @@ class CronScheduler(object):
         exec_thread.daemon = True
         exec_thread.start()
 
-cronScheduler = CronScheduler()
+class DummyCronScheduler(CronScheduler):
+
+    def execute(self):
+        pass
+        
+
+def load_scheduler(path):
+    i = path.rfind('.')
+    module, attr = path[:i], path[i+1:]
+    try:
+        mod = import_module(module)
+    except ImportError, e:
+        raise ImproperlyConfigured('Error importing django_cron scheduler %s: "%s"' % (path, e))
+    except ValueError, e:
+        raise ImproperlyConfigured('Error importing django_cron scheduler.')
+    try:
+        cls = getattr(mod, attr)
+    except AttributeError:
+        raise ImproperlyConfigured('Module "%s" does not define a "%s" django_cron scheduler' % (module, attr))
+    
+    return cls()
+
+cronScheduler = load_scheduler(getattr(settings, "CRON_SCHEDULER_CLASS", "django_cron.base.CronScheduler"))
 

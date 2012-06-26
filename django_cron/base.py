@@ -97,7 +97,7 @@ class CronScheduler(object):
                 # this will fail if you're debugging, so we want it
                 # to fail silently and start the timer again so we 
                 # can pick up where we left off once debugging is done
-                Timer(polling_frequency, self.execute).start()
+                #Timer(polling_frequency, self.execute).start()
                 return
                 
             jobs = models.Job.objects.all()
